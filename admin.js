@@ -1,178 +1,200 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import {
-  getFirestore, collection, getDocs, setDoc, doc, deleteDoc,
-  query, where, Timestamp
+import { 
+    getFirestore, collection, getDocs, setDoc, doc, deleteDoc, 
+    query, where, writeBatch, serverTimestamp, orderBy, limit 
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-// NUEVAS CREDENCIALES AJECOINS26
 const firebaseConfig = {
-  apiKey: "AIzaSyAmfn78n85qiOzmu-u9nwsPiOlXXFDYwcU",
-  authDomain: "ajecoins26-3d123.firebaseapp.com",
-  projectId: "ajecoins26-3d123",
-  storageBucket: "ajecoins26-3d123.firebasestorage.app",
-  messagingSenderId: "377488479071",
-  appId: "1:377488479071:web:3ea4c4c9a6b2380e375cea",
-  measurementId: "G-C7CW2P54ZY"
+    apiKey: "AIzaSyAmfn78n85qiOzmu-u9nwsPiOlXXFDYwcU",
+    authDomain: "ajecoins26-3d123.firebaseapp.com",
+    projectId: "ajecoins26-3d123",
+    storageBucket: "ajecoins26-3d123.firebasestorage.app",
+    messagingSenderId: "377488479071",
+    appId: "1:377488479071:web:3ea4c4c9a6b2380e375cea"
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-/* =================== VARIABLES DE CACHE =================== */
-let cacheUsuarios = [];
-let cacheCompras = [];
-let cacheMovimientos = [];
+/* --- UTILIDADES --- */
+const showLoader = (t) => { 
+    document.getElementById("loaderText").innerText = t; 
+    document.getElementById("loader").classList.add("active"); 
+};
+const hideLoader = () => document.getElementById("loader").classList.remove("active");
 
-/* =================== UTILIDADES =================== */
-function normalizarFecha(fecha) {
-  if (fecha.includes("-")) return fecha;
-  const [d, m, y] = fecha.split("/");
-  return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+function limpiarTexto(t) {
+    if(!t) return "";
+    return t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
 }
 
-function descargarCSV(nombre, filas) {
-  const csv = filas.map(f => f.join(";")).join("\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = nombre;
-  a.click();
+const SEDES = ["AMBATO","BABAHOYO","CARCHI","CHONE","CUENCA","DURAN","ECONORED C","ECONORED O","ECONORED S","ESMERALDAS","GUARANDA","GUAYAQUIL NORTE","GUAYAQUIL SUR","IBARRA","LAGO AGRIO","LOJA CENTRAL","MACAS","MACHACHI","MACHALA","MANTA","MAYORISTA G","MILAGRO","PEDRO CARBO","PENINSULA","PUYO","QUEVEDO","QUININDE","QUITO NORTE","QUITO SUR","RIOBAMBA","SACHA","SAMBORONDON","SANTO DOMINGO","TENA","VENTANAS"];
+
+window.addEventListener('DOMContentLoaded', () => {
+    const select = document.getElementById('filtroCedisMaestra');
+    if(select) {
+        SEDES.sort().forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s; opt.textContent = s;
+            select.appendChild(opt);
+        });
+    }
+});
+
+function exportarTablaACsv(idTabla, nombreArchivo) {
+    const tabla = document.getElementById(idTabla);
+    let filas = Array.from(tabla.querySelectorAll("tr"));
+    if (filas.length <= 1) return alert("No hay datos para exportar");
+    let contenidoCsv = filas.map(f => {
+        let celdas = Array.from(f.querySelectorAll("th, td"));
+        if(idTabla === "maestraTable") celdas = celdas.slice(0, -1);
+        return celdas.map(c => `"${c.innerText.replace(/"/g, '""')}"`).join(";");
+    }).join("\n");
+    const blob = new Blob(["\ufeff" + contenidoCsv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = nombreArchivo + "_" + new Date().getTime() + ".csv";
+    link.click();
 }
 
-/* =================== ELIMINAR USUARIO =================== */
-window.eliminarUsuarioTotal = async (codVendedor) => {
-  if (!confirm(`⚠️ ¿ELIMINAR acceso y coins del vendedor ${codVendedor}?`)) return;
-  try {
-    await deleteDoc(doc(db, "credenciales", codVendedor));
-    const snapCargas = await getDocs(query(collection(db, "usuariosPorFecha"), where("codVendedor", "==", codVendedor)));
-    for (const d of snapCargas.docs) { await deleteDoc(doc(db, "usuariosPorFecha", d.id)); }
-    alert(`Usuario ${codVendedor} eliminado.`);
-    loadUsers();
-  } catch (err) { alert("Error al eliminar"); }
+document.querySelectorAll('.accordion-header').forEach(btn => {
+    btn.onclick = () => {
+        const content = btn.nextElementSibling;
+        content.style.display = content.style.display === 'block' ? 'none' : 'block';
+    };
+});
+
+window.eliminarUsuarioTotal = async (cod) => {
+    if(!confirm(`⚠️ ¿Eliminar historial y acceso de ${cod}?`)) return;
+    showLoader("Borrando...");
+    try {
+        const batch = writeBatch(db);
+        const q1 = query(collection(db, "usuariosPorFecha"), where("codVendedor", "==", cod));
+        const s1 = await getDocs(q1);
+        s1.forEach(d => batch.delete(d.ref));
+        const q2 = query(collection(db, "compras"), where("codVendedor", "==", cod));
+        const s2 = await getDocs(q2);
+        s2.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+        alert("Eliminado con éxito.");
+        document.getElementById("btnCargarMaestra").click();
+    } catch (e) { alert("Error al eliminar."); }
+    hideLoader();
 };
 
-/* =================== CARGA CSV =================== */
+/* --- CARGAS --- */
 document.getElementById("uploadBtn").onclick = async () => {
-  const file = document.getElementById("fileInput").files[0];
-  if (!file) return alert("Selecciona CSV");
-  const text = await file.text();
-  const lines = text.trim().split("\n").slice(1);
-  for (const line of lines) {
-    const [fechaRaw, codVendedor, nombre, cedis, coins] = line.split(";").map(x => x.trim());
-    if (!fechaRaw || !codVendedor) continue;
-    await setDoc(doc(db, "usuariosPorFecha", `${normalizarFecha(fechaRaw)}_${codVendedor}`), {
-      fecha: normalizarFecha(fechaRaw), codVendedor, nombre, cedis, coins_ganados: Number(coins), creado: Timestamp.now()
-    }, { merge: true });
-  }
-  alert("Carga completada");
-  loadUsers();
+    const file = document.getElementById("fileInput").files[0];
+    if(!file) return alert("Selecciona CSV");
+    showLoader("Procesando usuarios...");
+    const text = await file.text();
+    const lines = text.trim().split("\n").slice(1);
+    let batch = writeBatch(db);
+    let count = 0, total = 0;
+    try {
+        for (const line of lines) {
+            let [f, cod, nom, ceds, cns] = line.split(";").map(x => x?.trim());
+            if(!f || !cod) continue;
+            const cleanedCedis = limpiarTexto(ceds);
+            const docId = `${f.replace(/\//g,'-')}_${cod}_${cleanedCedis.replace(/\s+/g,'')}`;
+            batch.set(doc(db, "usuariosPorFecha", docId), {
+                fecha: f, codVendedor: cod, nombre: limpiarTexto(nom), 
+                cedis: cleanedCedis, coins_ganados: Number(cns) || 0,
+                actualizado: serverTimestamp()
+            }, { merge: true });
+            count++; total++;
+            if (count === 450) { 
+                await batch.commit(); batch = writeBatch(db); count = 0;
+                showLoader(`Subiendo: ${total}`);
+            }
+        }
+        if (count > 0) await batch.commit();
+        alert("Carga de usuarios exitosa");
+    } catch (e) { alert("Error en carga"); }
+    hideLoader();
 };
 
-/* =================== TABLAS Y RENDERS =================== */
-async function loadUsers() {
-  const snap = await getDocs(collection(db, "usuariosPorFecha"));
-  cacheUsuarios = [];
-  snap.forEach(d => cacheUsuarios.push(d.data()));
-  renderCargas(cacheUsuarios);
-}
+/* --- CONSULTAS --- */
+document.getElementById("btnCargarMaestra").onclick = async () => {
+    const cedi = document.getElementById("filtroCedisMaestra").value;
+    const codBusqueda = document.getElementById("inputBusquedaVendedor").value.trim();
+    showLoader("Consultando base de datos...");
+    const tbody = document.querySelector("#maestraTable tbody");
+    tbody.innerHTML = "";
+    try {
+        let q = collection(db, "usuariosPorFecha");
+        if(cedi) q = query(q, where("cedis", "==", cedi));
+        if(codBusqueda) q = query(q, where("codVendedor", "==", codBusqueda));
+        if(!cedi && !codBusqueda) q = query(q, limit(400));
 
-function renderCargas(lista) {
-  const usersBody = document.querySelector("#usersTable tbody");
-  usersBody.innerHTML = "";
-  lista.sort((a,b) => a.fecha.localeCompare(b.fecha)).forEach(u => {
-    // AJUSTE: Se añade columna de CEDIS para que coincida con el HTML
-    usersBody.innerHTML += `<tr><td>${u.fecha}</td><td>${u.codVendedor}</td><td>${u.nombre}</td><td>${u.cedis}</td><td>${u.coins_ganados}</td></tr>`;
-  });
-}
-
-/* =================== EXPORTAR USUARIOS =================== */
-document.getElementById("btnExportUsers").onclick = () => {
-  if(!cacheUsuarios.length) return alert("No hay datos");
-  const filas = [["Fecha", "Codigo Vendedor", "Nombre", "Cedis", "Coins"]];
-  cacheUsuarios.forEach(u => filas.push([u.fecha, u.codVendedor, u.nombre, u.cedis, u.coins_ganados]));
-  descargarCSV("reporte_usuarios.csv", filas);
+        const snap = await getDocs(q);
+        const fragment = document.createDocumentFragment();
+        let unicos = new Set();
+        snap.forEach(d => {
+            const r = d.data();
+            const key = `${r.codVendedor}_${r.cedis}`;
+            if (!unicos.has(key)) {
+                unicos.add(key);
+                const tr = document.createElement("tr");
+                tr.innerHTML = `<td>${r.codVendedor}</td><td>${r.nombre}</td><td>${r.cedis}</td>
+                                <td><button class="btn-eliminar" onclick="eliminarUsuarioTotal('${r.codVendedor}')">Eliminar</button></td>`;
+                fragment.appendChild(tr);
+            }
+        });
+        tbody.appendChild(fragment);
+        document.getElementById("infoMaestra").innerText = `Registros: ${unicos.size}`;
+    } catch (e) { alert("Error en consulta"); }
+    hideLoader();
 };
 
-/* =================== COMPRAS =================== */
-async function loadCompras() {
-  const snap = await getDocs(collection(db, "compras"));
-  cacheCompras = [];
-  snap.forEach(d => cacheCompras.push(d.data()));
-  const body = document.querySelector("#comprasTable tbody");
-  body.innerHTML = "";
-  cacheCompras.sort((a,b) => a.fecha.toMillis() - b.fecha.toMillis()).forEach(c => {
-    body.innerHTML += `<tr><td>${c.fecha.toDate().toLocaleString()}</td><td>${c.codVendedor}</td><td>${c.nombre}</td><td>${c.cedis}</td><td>${c.items.map(i=>i.nombre).join(", ")}</td><td>${c.total}</td></tr>`;
-  });
-}
-
-document.getElementById("btnExport").onclick = () => {
-  if(!cacheCompras.length) return alert("No hay compras");
-  const filas = [["Fecha", "Cod Vendedor", "Nombre", "Cedis", "Productos", "Total"]];
-  cacheCompras.forEach(c => filas.push([c.fecha.toDate().toLocaleString(), c.codVendedor, c.nombre, c.cedis, c.items.map(i=>i.nombre).join(", "), c.total]));
-  descargarCSV("reporte_compras.csv", filas);
+document.getElementById("btnCargarProductos").onclick = async () => {
+    showLoader("Cargando catálogo...");
+    const s = await getDocs(query(collection(db, "productos"), orderBy("producto")));
+    const b = document.querySelector("#productsTable tbody");
+    b.innerHTML = "";
+    s.forEach(d => { 
+        const p = d.data(); 
+        b.innerHTML += `<tr><td>${p.producto}</td><td><img src="assets/productos/${p.producto}.png" style="width:40px;" onerror="this.src='https://via.placeholder.com/50'"></td><td>${p.coins}</td></tr>`; 
+    });
+    hideLoader();
 };
 
-/* =================== MOVIMIENTOS =================== */
-document.getElementById("btnVerMov").onclick = async () => {
-  const cod = document.getElementById("movCedula").value.trim();
-  if(!cod) return alert("Escribe un código");
-  cacheMovimientos = await obtenerMovimientos(cod);
-  renderMov(cacheMovimientos);
+document.getElementById("btnCargarCompras").onclick = async () => {
+    showLoader("Cargando historial...");
+    const tbody = document.querySelector("#comprasTable tbody");
+    tbody.innerHTML = "";
+    const s = await getDocs(query(collection(db, "compras"), orderBy("fecha", "desc"), limit(200)));
+    s.forEach(doc => {
+        const d = doc.data();
+        const f = d.fecha ? d.fecha.toDate().toLocaleDateString() : "---";
+        tbody.innerHTML += `<tr><td>${f}</td><td>${d.codVendedor}</td><td>${d.nombre}</td><td>${d.cedis}</td><td>${d.items.map(i=>i.nombre).join(", ")}</td><td>${d.total}</td></tr>`;
+    });
+    hideLoader();
 };
 
-document.getElementById("btnVerTodosMov").onclick = async () => {
-  const snapUsers = await getDocs(collection(db, "usuariosPorFecha"));
-  const todosLosCodigos = [...new Set(snapUsers.docs.map(d => d.data().codVendedor))];
-  
-  let totalMovs = [];
-  for (const cod of todosLosCodigos) {
-    const m = await obtenerMovimientos(cod);
-    totalMovs = totalMovs.concat(m);
-  }
-  cacheMovimientos = totalMovs.sort((a,b) => new Date(a.fec) - new Date(b.fec));
-  renderMov(cacheMovimientos);
+document.getElementById("btnCargarMovs").onclick = async () => {
+    const cod = document.getElementById("inputMovsCod").value.trim();
+    if(!cod) return alert("Ingresa un código");
+    showLoader("Calculando saldos...");
+    const tbody = document.querySelector("#movTable tbody");
+    tbody.innerHTML = "";
+    const [s1, s2] = await Promise.all([
+        getDocs(query(collection(db, "usuariosPorFecha"), where("codVendedor", "==", cod))),
+        getDocs(query(collection(db, "compras"), where("codVendedor", "==", cod)))
+    ]);
+    let m = [];
+    s1.forEach(d => m.push({ cod: d.data().codVendedor, nom: d.data().nombre, ceds: d.data().cedis, fec: d.data().fecha, con: "Carga", cns: d.data().coins_ganados }));
+    s2.forEach(d => m.push({ cod: d.data().codVendedor, nom: d.data().nombre, ceds: d.data().cedis, fec: d.data().fecha.toDate().toISOString().slice(0,10), con: "Canje", cns: -d.data().total }));
+    m.sort((a,b) => new Date(a.fec) - new Date(b.fec));
+    let sal = 0;
+    m.forEach(i => {
+        sal += i.cns;
+        tbody.innerHTML += `<tr><td>${i.cod}</td><td>${i.nom}</td><td>${i.ceds}</td><td>${i.fec}</td><td>${i.con}</td><td style="color:${i.cns>0?'green':'red'}">${i.cns}</td><td><b>${sal}</b></td></tr>`;
+    });
+    hideLoader();
 };
 
-async function obtenerMovimientos(cod) {
-  let mov = []; let saldo = 0;
-  const ing = await getDocs(query(collection(db, "usuariosPorFecha"), where("codVendedor", "==", cod)));
-  ing.forEach(d => { const u = d.data(); mov.push({ cod: u.codVendedor, nom: u.nombre, ced: u.cedis, fec: u.fecha, con: "Carga", cns: u.coins_ganados }); });
-  const com = await getDocs(query(collection(db, "compras"), where("codVendedor", "==", cod)));
-  com.forEach(d => { const c = d.data(); mov.push({ cod: c.codVendedor, nom: c.nombre, ced: c.cedis, fec: c.fecha.toDate().toISOString().slice(0, 10), con: "Canje", cns: -c.total }); });
-  mov.sort((a, b) => new Date(a.fec) - new Date(b.fec)).forEach(m => { saldo += m.cns; m.sld = saldo; });
-  return mov;
-}
-
-function renderMov(lista) {
-  const body = document.querySelector("#movTable tbody");
-  body.innerHTML = lista.length ? lista.map(m => `<tr><td>${m.cod}</td><td>${m.nom}</td><td>${m.ced}</td><td>${m.fec}</td><td>${m.con}</td><td style="color:${m.cns>=0?'green':'red'}">${m.cns}</td><td>${m.sld}</td></tr>`).join('') : "<tr><td colspan='7'>No hay datos</td></tr>";
-}
-
-document.getElementById("btnExportMov").onclick = () => {
-  if(!cacheMovimientos.length) return alert("No hay movimientos en pantalla");
-  const filas = [["Codigo", "Nombre", "Cedis", "Fecha", "Concepto", "Coins", "Saldo"]];
-  cacheMovimientos.forEach(m => filas.push([m.cod, m.nom, m.ced, m.fec, m.con, m.cns, m.sld]));
-  descargarCSV("reporte_movimientos.csv", filas);
-};
-
-/* =================== PRODUCTOS =================== */
-document.getElementById("uploadProductBtn").onclick = async () => {
-  const file = document.getElementById("productFileInput").files[0];
-  if (!file) return;
-  const text = await file.text();
-  const lines = text.trim().split("\n").slice(1);
-  for (const line of lines) {
-    const [nombre, coins] = line.replace(/"/g, "").split(";");
-    await setDoc(doc(db, "productos", nombre.trim()), { producto: nombre.trim(), coins: Number(coins) });
-  }
-  loadProducts();
-};
-
-async function loadProducts() {
-  const snap = await getDocs(collection(db, "productos"));
-  const body = document.querySelector("#productsTable tbody");
-  body.innerHTML = "";
-  snap.forEach(d => { const p = d.data(); body.innerHTML += `<tr><td>${p.producto}</td><td><img src="assets/productos/${p.producto}.png" width="40"></td><td>${p.coins}</td></tr>`; });
-}
-
-loadUsers(); loadProducts(); loadCompras();
+document.getElementById("btnExportMaestra").onclick = () => exportarTablaACsv("maestraTable", "Maestro");
+document.getElementById("btnExportProds").onclick = () => exportarTablaACsv("productsTable", "Inventario");
+document.getElementById("btnExportCompras").onclick = () => exportarTablaACsv("comprasTable", "Canjes");
+document.getElementById("btnExportMovs").onclick = () => exportarTablaACsv("movTable", "EstadoCuenta");
