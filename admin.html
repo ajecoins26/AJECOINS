@@ -1,126 +1,91 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Admin – AJE Coins</title>
-
-<link rel="stylesheet" href="styles.css"/>
-
-<!-- MUY IMPORTANTE -->
-<script type="module" src="admin.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin – AJE Coins</title>
+    <link rel="stylesheet" href="styles.css">
+    <script type="module" src="admin.js"></script>
 </head>
-
 <body>
 
-<h1>Panel de Administrador – AJE Coins</h1>
+<header class="topBar">
+    <img src="assets/logo.png" class="logo" alt="Logo">
+    <span>Panel Administrativo – AJE Coins</span>
+</header>
 
-<!-- ================== CARGA USUARIOS ================== -->
-<section class="card">
-  <h2>Subir archivo de USUARIOS</h2>
-  <input type="file" id="fileInput" accept=".csv"/>
-  <button id="uploadBtn">Cargar usuarios</button>
-</section>
+<main class="main-container">
 
-<!-- ================== CARGA PRODUCTOS ================== -->
-<section class="card">
-  <h2>Subir archivo de PRODUCTOS</h2>
-  <input type="file" id="productFileInput" accept=".csv"/>
-  <button id="uploadProductBtn">Cargar productos</button>
-</section>
+    <section class="card">
+        <h2>📁 Carga de Datos</h2>
+        <div style="display: grid; gap: 10px; margin-top:10px;">
+            <div>
+                <label>Usuarios (CSV):</label>
+                <input type="file" id="fileInput" accept=".csv">
+                <button id="uploadBtn">Cargar Usuarios</button>
+            </div>
+            <hr>
+            <div>
+                <label>Productos (CSV):</label>
+                <input type="file" id="productFileInput" accept=".csv">
+                <button id="uploadProductBtn">Cargar Productos</button>
+            </div>
+        </div>
+    </section>
 
-<!-- ================== PRODUCTOS ================== -->
-<section class="card">
-  <h2>Productos</h2>
-  <table id="productsTable">
-    <thead>
-      <tr>
-        <th>Producto</th>
-        <th>Imagen</th>
-        <th>Coins</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-</section>
+    <section class="card-wide">
+        <h2>📦 Inventario de Productos</h2>
+        <table id="productsTable">
+            <thead>
+                <tr><th>Producto</th><th>Imagen</th><th>Coins</th></tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </section>
 
-<!-- ================== USUARIOS ================== -->
-<section class="card">
-  <h2>Usuarios cargados</h2>
+    <section class="card-wide">
+        <h2>👥 Usuarios y Cargas de Coins</h2>
+        <div style="margin-bottom: 10px;">
+            <button id="btnExportUsers" style="width: auto; background: #546e7a;">Exportar Usuarios CSV</button>
+        </div>
+        <table id="usersTable">
+            <thead>
+                <tr><th>Fecha</th><th>Código</th><th>Nombre</th><th>Cedis</th><th>Coins</th></tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </section>
 
-  <div class="filtros">
-    <label>Fecha:
-      <input type="date" id="filtroFecha"/>
-    </label>
-    <button id="btnFiltrar">Filtrar</button>
-    <button id="btnVerTodo">Ver todo</button>
-    <button id="btnExportUsers">Exportar CSV</button>
-  </div>
+    <section class="card-wide">
+        <h2>📊 Movimientos y Saldos por Usuario</h2>
+        <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+            <input type="text" id="movCedula" placeholder="Código de Vendedor">
+            <button id="btnVerMov" style="width: 150px;">Consultar</button>
+            <button id="btnVerTodosMov" style="width: 150px; background: #546e7a;">Ver Todos</button>
+            <button id="btnExportMov" style="width: 150px; background: #546e7a;">Exportar</button>
+        </div>
+        <table id="movTable">
+            <thead>
+                <tr><th>Código</th><th>Nombre</th><th>Cedis</th><th>Fecha</th><th>Concepto</th><th>Coins</th><th>Saldo</th></tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </section>
 
-  <table id="usersTable">
-    <thead>
-      <tr>
-        <th>Fecha</th>
-        <th>Cédula</th>
-        <th>Nombre</th>
-        <th>Cedis</th>
-        <th>Coins ganados</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-</section>
+    <section class="card-wide">
+        <h2>🛒 Historial de Canjes</h2>
+        <div style="margin-bottom: 10px;">
+            <button id="btnExport" style="width: auto; background: #546e7a;">Exportar Compras CSV</button>
+        </div>
+        <table id="comprasTable">
+            <thead>
+                <tr><th>Fecha</th><th>Código</th><th>Nombre</th><th>Cedis</th><th>Productos</th><th>Total</th></tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </section>
 
-<!-- ================== COMPRAS ================== -->
-<section class="card">
-  <h2>
-    Historial de compras
-    <button id="btnExport">Exportar CSV</button>
-  </h2>
-
-  <table id="comprasTable">
-    <thead>
-      <tr>
-        <th>Fecha</th>
-        <th>Cédula</th>
-        <th>Nombre</th>
-        <th>Cedis</th>
-        <th>Productos</th>
-        <th>Total</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-</section>
-
-<!-- ================== MOVIMIENTOS ================== -->
-<section class="card">
-  <h2>Movimientos por usuario</h2>
-
-  <div class="filtros">
-    <input type="text" id="movCedula" placeholder="Ingrese cédula"/>
-
-    <!-- Estos 3 botones son EXACTAMENTE los que el admin.js usa -->
-    <button id="btnVerMov">Ver por cédula</button>
-    <button id="btnVerTodosMov">Ver TODOS</button>
-    <button id="btnExportMov">Exportar</button>
-  </div>
-
-  <table id="movTable">
-    <thead>
-      <tr>
-        <th>Cédula</th>
-        <th>Nombre</th>
-        <th>Cedis</th>
-        <th>Fecha</th>
-        <th>Concepto</th>
-        <th>Coins</th>
-        <th>Saldo</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-</section>
+</main>
 
 </body>
 </html>
