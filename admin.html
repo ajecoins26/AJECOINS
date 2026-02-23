@@ -1,126 +1,115 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Admin – AJE Coins</title>
-
-<link rel="stylesheet" href="styles.css"/>
-
-<!-- MUY IMPORTANTE -->
-<script type="module" src="admin.js"></script>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Admin – AJE Coins</title>
+    <link rel="stylesheet" href="styles.css"/>
+    <script type="module" src="admin.js"></script>
 </head>
-
 <body>
 
-<h1>Panel de Administrador – AJE Coins</h1>
+<header class="topBar">
+    <img src="assets/logo.png" class="logo" alt="Logo">
+    <span>Panel Administrativo – AJE Coins</span>
+</header>
 
-<!-- ================== CARGA USUARIOS ================== -->
-<section class="card">
-  <h2>Subir archivo de USUARIOS</h2>
-  <input type="file" id="fileInput" accept=".csv"/>
-  <button id="uploadBtn">Cargar usuarios</button>
-</section>
+<main class="main-container">
 
-<!-- ================== CARGA PRODUCTOS ================== -->
-<section class="card">
-  <h2>Subir archivo de PRODUCTOS</h2>
-  <input type="file" id="productFileInput" accept=".csv"/>
-  <button id="uploadProductBtn">Cargar productos</button>
-</section>
+    <div class="accordion">
+        <button class="accordion-header">📁 Carga de Archivos (Usuarios y Productos) <span>▼</span></button>
+        <div class="accordion-content">
+            <div class="grid-admin">
+                <section class="card-mini">
+                    <h3>Subir USUARIOS (CSV)</h3>
+                    <input type="file" id="fileInput" accept=".csv"/>
+                    <button id="uploadBtn" class="btn-admin">Cargar Usuarios</button>
+                </section>
+                <section class="card-mini">
+                    <h3>Subir PRODUCTOS (CSV)</h3>
+                    <input type="file" id="productFileInput" accept=".csv"/>
+                    <button id="uploadProductBtn" class="btn-admin">Cargar Productos</button>
+                </section>
+            </div>
+        </div>
+    </div>
 
-<!-- ================== PRODUCTOS ================== -->
-<section class="card">
-  <h2>Productos</h2>
-  <table id="productsTable">
-    <thead>
-      <tr>
-        <th>Producto</th>
-        <th>Imagen</th>
-        <th>Coins</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-</section>
+    <div class="accordion">
+        <button class="accordion-header">👥 Lista Maestra (Registros Únicos) <span>▼</span></button>
+        <div class="accordion-content">
+            <div class="filtros-bar">
+                <select id="filtroCedisMaestra" class="select-admin">
+                    <option value="">Todos los CEDIS</option>
+                </select>
+                <input type="text" id="inputBusquedaVendedor" placeholder="Código de Vendedor..." class="input-admin">
+                <button id="btnCargarMaestra" class="btn-admin">Consultar</button>
+                <button id="btnExportMaestra" class="btn-export">Exportar Lista</button>
+            </div>
+            <div id="infoMaestra" style="margin: 10px 0; font-weight: bold; color: #007a5a;"></div>
+            <div class="table-wrapper">
+                <table id="maestraTable">
+                    <thead><tr><th>Código</th><th>Nombre</th><th>Cedis</th><th>Acciones</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
-<!-- ================== USUARIOS ================== -->
-<section class="card">
-  <h2>Usuarios cargados</h2>
+    <div class="accordion">
+        <button class="accordion-header">📦 Inventario de Productos <span>▼</span></button>
+        <div class="accordion-content">
+            <div class="filtros-bar">
+                <button id="btnCargarProductos" class="btn-admin">Ver Inventario</button>
+                <button id="btnExportProds" class="btn-export">Exportar Inventario</button>
+            </div>
+            <div class="table-wrapper">
+                <table id="productsTable">
+                    <thead><tr><th>Producto</th><th>Imagen</th><th>Coins</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
-  <div class="filtros">
-    <label>Fecha:
-      <input type="date" id="filtroFecha"/>
-    </label>
-    <button id="btnFiltrar">Filtrar</button>
-    <button id="btnVerTodo">Ver todo</button>
-    <button id="btnExportUsers">Exportar CSV</button>
-  </div>
+    <div class="accordion">
+        <button class="accordion-header">🛒 Historial de Canjes Realizados <span>▼</span></button>
+        <div class="accordion-content">
+            <div class="filtros-bar">
+                <button id="btnCargarCompras" class="btn-admin">Ver Historial</button>
+                <button id="btnExportCompras" class="btn-export">Exportar Historial</button>
+            </div>
+            <div class="table-wrapper">
+                <table id="comprasTable">
+                    <thead><tr><th>Fecha</th><th>Código</th><th>Nombre</th><th>Cedis</th><th>Productos</th><th>Total</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
-  <table id="usersTable">
-    <thead>
-      <tr>
-        <th>Fecha</th>
-        <th>Cédula</th>
-        <th>Nombre</th>
-        <th>Cedis</th>
-        <th>Coins ganados</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-</section>
+    <div class="accordion">
+        <button class="accordion-header">📊 Movimientos y Saldos por Usuario <span>▼</span></button>
+        <div class="accordion-content">
+            <div class="filtros-bar">
+                <input type="text" id="inputMovsCod" placeholder="Código Vendedor..." class="input-admin">
+                <button id="btnCargarMovs" class="btn-admin">Cargar Movimientos</button>
+                <button id="btnExportMovs" class="btn-export">Exportar Movimientos</button>
+            </div>
+            <div class="table-wrapper">
+                <table id="movTable">
+                    <thead><tr><th>Código</th><th>Nombre</th><th>Cedis</th><th>Fecha</th><th>Concepto</th><th>Coins</th><th>Saldo</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
-<!-- ================== COMPRAS ================== -->
-<section class="card">
-  <h2>
-    Historial de compras
-    <button id="btnExport">Exportar CSV</button>
-  </h2>
+</main>
 
-  <table id="comprasTable">
-    <thead>
-      <tr>
-        <th>Fecha</th>
-        <th>Cédula</th>
-        <th>Nombre</th>
-        <th>Cedis</th>
-        <th>Productos</th>
-        <th>Total</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-</section>
-
-<!-- ================== MOVIMIENTOS ================== -->
-<section class="card">
-  <h2>Movimientos por usuario</h2>
-
-  <div class="filtros">
-    <input type="text" id="movCedula" placeholder="Ingrese cédula"/>
-
-    <!-- Estos 3 botones son EXACTAMENTE los que el admin.js usa -->
-    <button id="btnVerMov">Ver por cédula</button>
-    <button id="btnVerTodosMov">Ver TODOS</button>
-    <button id="btnExportMov">Exportar</button>
-  </div>
-
-  <table id="movTable">
-    <thead>
-      <tr>
-        <th>Cédula</th>
-        <th>Nombre</th>
-        <th>Cedis</th>
-        <th>Fecha</th>
-        <th>Concepto</th>
-        <th>Coins</th>
-        <th>Saldo</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-</section>
+<div id="loader" class="loader-overlay">
+    <div class="spinner"></div>
+    <p id="loaderText">Procesando...</p>
+</div>
 
 </body>
 </html>
